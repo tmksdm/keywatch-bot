@@ -7,6 +7,7 @@ from bot.config import BOT_TOKEN
 from bot.db import init_db
 from bot.handlers.start import router as start_router
 from bot.handlers.users import router as users_router
+from bot.handlers.channels import router as channels_router
 from bot.middlewares.auth import AuthMiddleware
 
 
@@ -27,7 +28,8 @@ async def main():
 
     # Подключение хэндлеров
     dp.include_router(start_router)
-    dp.include_router(users_router)    
+    dp.include_router(users_router)
+    dp.include_router(channels_router) 
 
     logging.info("Бот запускается...")
     await dp.start_polling(bot)

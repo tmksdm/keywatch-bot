@@ -62,20 +62,30 @@ async def users_list(callback: CallbackQuery, is_admin: bool):
         rows = await cursor.fetchall()
 
     if not rows:
-        text = "Пользователей нет."
-    else:
-        lines = []
-        for r in rows:
-            name = f"@{r['username']}" if r['username'] else f"ID:{r['tg_id']}"
-            role = " 👑" if r['is_admin'] else ""
-            pause = " ⏸" if r['paused_until'] else ""
-            lines.append(f"• {name} ({r['tg_id']}){role}{pause}")
-        text = "👥 Пользователи:\n\n" + "\n".join(lines)
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="users")],
+        ])
+        await callback.message.edit_text("Пользователей нет.", reply_markup=kb)
+        await callback.answer()
+        return
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Назад", callback_data="users")],
-    ])
-    await callback.message.edit_text(text, reply_markup=kb)
+    buttons = []
+    for r in rows:
+        name = f"@{r['username']}" if r['username'] else f"ID:{r['tg_id']}"
+        role = " 👑" if r['is_admin'] else ""
+        pause = " ⏸" if r['paused_until'] else ""
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{name} ({r['tg_id']}){role}{pause}",
+                callback_data=f"user_manage_{r['tg_id']}",
+            )
+        ])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="users")])
+
+    await callback.message.edit_text(
+        "👥 Пользователи (нажми для управления):",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
     await callback.answer()
 
 
@@ -233,4 +243,3 @@ async def users_delete_execute(callback: CallbackQuery, is_admin: bool):
         reply_markup=main_menu(is_admin=True),
     )
     await callback.answer()
-    
