@@ -448,8 +448,10 @@ async def user_manage_menu(callback: CallbackQuery, is_admin: bool):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📡 Каналы", callback_data=f"uch_{tg_id}")],
         [InlineKeyboardButton(text="🔑 Ключевые слова", callback_data=f"ukw_{tg_id}")],
+        [InlineKeyboardButton(text="⏸ Пауза", callback_data=f"upause_{tg_id}")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="users_list")],
     ])
+
     await callback.message.edit_text(
         f"Управление: {name} ({tg_id})", reply_markup=kb
     )

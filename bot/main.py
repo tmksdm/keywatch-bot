@@ -9,6 +9,7 @@ from bot.handlers.start import router as start_router
 from bot.handlers.users import router as users_router
 from bot.handlers.channels import router as channels_router
 from bot.handlers.keywords import router as keywords_router
+from bot.handlers.pause import router as pause_router
 from bot.middlewares.auth import AuthMiddleware
 
 
@@ -32,6 +33,7 @@ async def main():
     dp.include_router(users_router)
     dp.include_router(channels_router)
     dp.include_router(keywords_router)
+    dp.include_router(pause_router)
 
     logging.info("Бот запускается...")
     await dp.start_polling(bot)
