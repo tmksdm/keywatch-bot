@@ -4,6 +4,8 @@ import signal
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand
+
 
 from bot.config import BOT_TOKEN
 from bot.db import init_db
@@ -56,6 +58,10 @@ async def main():
         except NotImplementedError:
             # Windows не поддерживает add_signal_handler
             pass
+
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Главное меню"),
+    ])
 
     log.info("Бот запускается...")
     try:
