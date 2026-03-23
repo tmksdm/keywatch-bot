@@ -11,7 +11,7 @@ from bot.handlers.channels import router as channels_router
 from bot.handlers.keywords import router as keywords_router
 from bot.handlers.pause import router as pause_router
 from bot.middlewares.auth import AuthMiddleware
-
+from bot.userbot.monitor import start_userbot, client as telethon_client
 
 
 async def main():
@@ -23,10 +23,13 @@ async def main():
     # Инициализация БД
     await init_db()
 
+    # Запуск userbot (Telethon)
+    await start_userbot()
+
     # Создание бота и диспетчера
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
-    dp.update.middleware(AuthMiddleware())    
+    dp.update.middleware(AuthMiddleware())
 
     # Подключение хэндлеров
     dp.include_router(start_router)
@@ -36,8 +39,12 @@ async def main():
     dp.include_router(pause_router)
 
     logging.info("Бот запускается...")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await telethon_client.disconnect()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

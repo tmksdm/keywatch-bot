@@ -36,7 +36,7 @@ class AuthMiddleware(BaseMiddleware):
             # --- Админ: автосоздание при первом обращении ---
             if tg_id == ADMIN_ID:
                 row = await db.execute(
-                    "SELECT id FROM users WHERE tg_id = ?", (tg_id,)
+                    "SELECT id, username FROM users WHERE tg_id = ?", (tg_id,)
                 )
                 existing = await row.fetchone()
                 if not existing:
@@ -45,18 +45,36 @@ class AuthMiddleware(BaseMiddleware):
                         (tg_id, username),
                     )
                     await db.commit()
-                # Сохраняем флаг в data для хэндлеров
+                elif username and existing[1] != username:
+                    await db.execute(
+                        "UPDATE users SET username = ? WHERE tg_id = ?",
+                        (username, tg_id),
+                    )
+                    await db.commit()
                 data["is_admin"] = True
                 return await handler(event, data)
 
             # --- Зарегистрированный пользователь ---
             row = await db.execute(
-                "SELECT id FROM users WHERE tg_id = ?", (tg_id,)
+                "SELECT id, username FROM users WHERE tg_id = ?", (tg_id,)
             )
             existing = await row.fetchone()
             if existing:
+                # Обновляем username если изменился
+                if username and existing[1] != username:
+                    await db.execute(
+                        "UPDATE users SET username = ? WHERE tg_id = ?",
+                        (username, tg_id),
+                    )
+                    await db.commit()
                 data["is_admin"] = False
                 return await handler(event, data)
+
+        # --- Пропускаем userbot (он форвардит посты боту) ---
+        from bot.userbot.monitor import userbot_id
+        if userbot_id and tg_id == userbot_id:
+            data["is_admin"] = False
+            return await handler(event, data)
 
         # --- Неизвестный: тишина + уведомление админу ---
         bot: Bot = data["bot"]
@@ -68,7 +86,7 @@ class AuthMiddleware(BaseMiddleware):
                 f"(ID: {tg_id}) попытался использовать бота",
             )
         except Exception:
-            pass  # Если админ ещё не /start — не падаем
+            pass
 
         return  # Игнорируем неизвестного
     

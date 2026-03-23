@@ -8,6 +8,7 @@ import re
 
 from bot.db import DB_PATH
 from bot.keyboards.menus import main_menu
+from bot.userbot.monitor import ensure_joined, leave_if_unused, client as telethon_client
 
 router = Router()
 
@@ -117,6 +118,7 @@ async def ch_add_process(message: Message, state: FSMContext):
     added = []
     skipped_format = []
     skipped_dup = []
+    skipped_join = []
 
     async with aiosqlite.connect(DB_PATH) as db:
         for raw in lines:
@@ -127,14 +129,28 @@ async def ch_add_process(message: Message, state: FSMContext):
             if ch is None:
                 skipped_format.append(raw)
                 continue
-            try:
-                await db.execute(
-                    "INSERT INTO channels (user_id, channel) VALUES (?, ?)",
-                    (user_id, ch),
-                )
-                added.append(ch)
-            except aiosqlite.IntegrityError:
+
+            # Проверяем дубликат ДО подписки
+            cur = await db.execute(
+                "SELECT id FROM channels WHERE user_id = ? AND channel = ?",
+                (user_id, ch),
+            )
+            if await cur.fetchone():
                 skipped_dup.append(ch)
+                continue
+
+            # Подписка userbot
+            if telethon_client.is_connected():
+                joined = await ensure_joined(ch)
+                if not joined:
+                    skipped_join.append(ch)
+                    continue
+
+            await db.execute(
+                "INSERT INTO channels (user_id, channel) VALUES (?, ?)",
+                (user_id, ch),
+            )
+            added.append(ch)
         await db.commit()
 
     # Сводка
@@ -143,6 +159,8 @@ async def ch_add_process(message: Message, state: FSMContext):
         parts.append(f"✅ Добавлено ({len(added)}):\n" + "\n".join(added))
     if skipped_dup:
         parts.append(f"⚠️ Уже есть ({len(skipped_dup)}):\n" + "\n".join(skipped_dup))
+    if skipped_join:
+        parts.append(f"❌ Не удалось подписаться ({len(skipped_join)}):\n" + "\n".join(skipped_join))
     if skipped_format:
         parts.append(f"❌ Неверный формат ({len(skipped_format)}):\n" + "\n".join(skipped_format))
     if not parts:
@@ -208,6 +226,10 @@ async def ch_del_execute(callback: CallbackQuery):
         channel_name = row[0]
         await db.execute("DELETE FROM channels WHERE id = ?", (ch_id,))
         await db.commit()
+
+    # Отписка userbot если канал больше никому не нужен
+    if telethon_client.is_connected():
+        await leave_if_unused(channel_name)
 
     await callback.answer(f"Удалён: {channel_name}", show_alert=True)
     # Обновляем список
@@ -291,6 +313,7 @@ async def uch_add_process(message: Message, state: FSMContext, is_admin: bool):
     added = []
     skipped_format = []
     skipped_dup = []
+    skipped_join = []
 
     async with aiosqlite.connect(DB_PATH) as db:
         for raw in lines:
@@ -301,14 +324,28 @@ async def uch_add_process(message: Message, state: FSMContext, is_admin: bool):
             if ch is None:
                 skipped_format.append(raw)
                 continue
-            try:
-                await db.execute(
-                    "INSERT INTO channels (user_id, channel) VALUES (?, ?)",
-                    (user_id, ch),
-                )
-                added.append(ch)
-            except aiosqlite.IntegrityError:
+
+            # Проверяем дубликат ДО подписки
+            cur = await db.execute(
+                "SELECT id FROM channels WHERE user_id = ? AND channel = ?",
+                (user_id, ch),
+            )
+            if await cur.fetchone():
                 skipped_dup.append(ch)
+                continue
+
+            # Подписка userbot
+            if telethon_client.is_connected():
+                joined = await ensure_joined(ch)
+                if not joined:
+                    skipped_join.append(ch)
+                    continue
+
+            await db.execute(
+                "INSERT INTO channels (user_id, channel) VALUES (?, ?)",
+                (user_id, ch),
+            )
+            added.append(ch)
         await db.commit()
 
     parts = []
@@ -316,6 +353,8 @@ async def uch_add_process(message: Message, state: FSMContext, is_admin: bool):
         parts.append(f"✅ Добавлено ({len(added)}):\n" + "\n".join(added))
     if skipped_dup:
         parts.append(f"⚠️ Уже есть ({len(skipped_dup)}):\n" + "\n".join(skipped_dup))
+    if skipped_join:
+        parts.append(f"❌ Не удалось подписаться ({len(skipped_join)}):\n" + "\n".join(skipped_join))
     if skipped_format:
         parts.append(f"❌ Неверный формат ({len(skipped_format)}):\n" + "\n".join(skipped_format))
     if not parts:
@@ -391,6 +430,10 @@ async def uch_del_execute(callback: CallbackQuery, is_admin: bool):
         channel_name = row[0]
         await db.execute("DELETE FROM channels WHERE id = ?", (ch_id,))
         await db.commit()
+
+    # Отписка userbot если канал больше никому не нужен
+    if telethon_client.is_connected():
+        await leave_if_unused(channel_name)
 
     await callback.answer(f"Удалён: {channel_name}", show_alert=True)
     # Обновляем список

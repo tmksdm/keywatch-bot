@@ -112,31 +112,48 @@ async def users_add_start(callback: CallbackQuery, is_admin: bool, state: FSMCon
 async def users_add_process(message: Message, state: FSMContext, bot: Bot):
     text = message.text.strip()
 
-    # Определяем tg_id и username
     tg_id = None
     username = None
 
     if text.isdigit():
         tg_id = int(text)
+        # Пробуем получить username через Telethon
+        try:
+            from bot.userbot.monitor import client as telethon_client
+            if telethon_client.is_connected():
+                entity = await telethon_client.get_entity(tg_id)
+                username = getattr(entity, "username", None)
+        except Exception:
+            pass  # Не страшно, добавим без username
+
     elif text.startswith("@") and len(text) > 1:
         username = text[1:]
-        # Пробуем получить ID через get_chat
+        # Резолвим username → tg_id через Telethon
         try:
-            chat = await bot.get_chat(f"@{username}")
-            tg_id = chat.id
+            from bot.userbot.monitor import client as telethon_client
+            if telethon_client.is_connected():
+                entity = await telethon_client.get_entity(text)
+                tg_id = entity.id
         except Exception:
-            await message.answer(
-                f"❌ Не удалось найти пользователя {text}.\n"
-                "Убедись, что username правильный, или отправь числовой ID.",
-            )
-            return
+            pass
+
+        if tg_id is None:
+            # Фоллбэк — пробуем через бота
+            try:
+                chat = await bot.get_chat(f"@{username}")
+                tg_id = chat.id
+            except Exception:
+                await message.answer(
+                    f"❌ Не удалось найти пользователя {text}.\n"
+                    "Убедись, что username правильный, или отправь числовой ID.",
+                )
+                return
     else:
         await message.answer("❌ Отправь числовой ID или @username.")
         return
 
     # Сохраняем в БД
     async with aiosqlite.connect(DB_PATH) as db:
-        # Проверяем дубликат
         cursor = await db.execute("SELECT id FROM users WHERE tg_id = ?", (tg_id,))
         if await cursor.fetchone():
             await message.answer(f"⚠️ Пользователь {tg_id} уже зарегистрирован.")
