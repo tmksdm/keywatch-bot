@@ -152,6 +152,13 @@ async def _get_bot_entity():
 
 @client.on(events.NewMessage())
 async def on_new_message(event):
+    try:
+        await _handle_new_message(event)
+    except Exception as e:
+        log.error("Ошибка в обработчике нового сообщения: %s", e, exc_info=True)
+
+
+async def _handle_new_message(event):
     if not event.is_channel:
         return
 

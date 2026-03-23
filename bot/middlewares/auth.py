@@ -5,9 +5,12 @@ from aiogram.types import TelegramObject, Update
 
 import aiosqlite
 
+import logging
+
 from bot.config import ADMIN_ID
 from bot.db import DB_PATH
 
+log = logging.getLogger(__name__)
 
 class AuthMiddleware(BaseMiddleware):
     """Пропускает только зарегистрированных пользователей.
@@ -79,14 +82,15 @@ class AuthMiddleware(BaseMiddleware):
         # --- Неизвестный: тишина + уведомление админу ---
         bot: Bot = data["bot"]
         mention = f"@{username}" if username else "без username"
+        log.info("Неизвестный пользователь: %s (ID: %d)", mention, tg_id)
         try:
             await bot.send_message(
                 ADMIN_ID,
                 f"⚠️ Неизвестный пользователь {mention} "
                 f"(ID: {tg_id}) попытался использовать бота",
             )
-        except Exception:
-            pass
+        except Exception as e:
+            log.error("Не удалось уведомить админа: %s", e)
 
         return  # Игнорируем неизвестного
     

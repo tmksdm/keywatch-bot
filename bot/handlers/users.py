@@ -5,6 +5,9 @@ from aiogram.fsm.state import State, StatesGroup
 
 import aiosqlite
 
+import logging
+log = logging.getLogger(__name__)
+
 from bot.db import DB_PATH
 from bot.keyboards.menus import main_menu
 
@@ -166,6 +169,8 @@ async def users_add_process(message: Message, state: FSMContext, bot: Bot):
         )
         await db.commit()
 
+    log.info("Админ добавил пользователя: tg_id=%d, username=%s", tg_id, username)        
+
     await state.clear()
     name_display = f"@{username} ({tg_id})" if username else str(tg_id)
     await message.answer(
@@ -254,6 +259,8 @@ async def users_delete_execute(callback: CallbackQuery, is_admin: bool):
         await db.execute("DELETE FROM keywords WHERE user_id = ?", (user_id,))
         await db.execute("DELETE FROM users WHERE id = ?", (user_id,))
         await db.commit()
+
+    log.info("Админ удалил пользователя: tg_id=%d", tg_id)        
 
     await callback.message.edit_text(
         f"✅ Пользователь {tg_id} удалён.",

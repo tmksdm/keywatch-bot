@@ -61,6 +61,7 @@ async def handle_forwarded_to_bot(message: Message):
 
         info = _pending_recipients.pop(channel, None)
         if not info:
+            log.warning("Нет recipients для канала %s, пропускаем", channel)
             return
 
         recipients = info["recipients"]

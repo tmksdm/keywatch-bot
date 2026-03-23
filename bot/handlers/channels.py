@@ -6,6 +6,9 @@ from aiogram.fsm.state import State, StatesGroup
 import aiosqlite
 import re
 
+import logging
+log = logging.getLogger(__name__)
+
 from bot.db import DB_PATH
 from bot.keyboards.menus import main_menu
 from bot.userbot.monitor import ensure_joined, leave_if_unused, client as telethon_client
@@ -153,6 +156,9 @@ async def ch_add_process(message: Message, state: FSMContext):
             added.append(ch)
         await db.commit()
 
+    if added:
+        log.info("Пользователь %d добавил каналы: %s", message.from_user.id, ", ".join(added))        
+
     # Сводка
     parts = []
     if added:
@@ -230,6 +236,9 @@ async def ch_del_execute(callback: CallbackQuery):
     # Отписка userbot если канал больше никому не нужен
     if telethon_client.is_connected():
         await leave_if_unused(channel_name)
+
+    log.info("Пользователь %d удалил канал %s", callback.from_user.id, channel_name)
+
 
     await callback.answer(f"Удалён: {channel_name}", show_alert=True)
     # Обновляем список
